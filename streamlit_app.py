@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import plotly.express as px  # Para gráficos bonitos
 
 # Configuración de la página
 st.set_page_config(
@@ -9,11 +10,33 @@ st.set_page_config(
     layout="wide"
 )
 
-# Función para cargar/guardar datos en Excel
+# Estilos CSS personalizados
+st.markdown("""
+    <style>
+    .st-emotion-cache-1v0mbdj {
+        border-radius: 10px;
+    }
+    .card {
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        background-color: #f9f9f9;
+    }
+    .titulo-seccion {
+        font-size: 1.5em;
+        color: #2e86c1;
+        margin-bottom: 10px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# Función para cargar/guardar datos
 def cargar_datos():
     if "inventario" not in st.session_state:
         st.session_state.inventario = pd.DataFrame(columns=[
-            "ID", "Tipo", "Marca", "Modelo", "Serial", "Usuario", "Departamento", "Fecha_Adquisicion", "Estado", "Notas"
+            "ID", "Categoría", "Tipo", "Marca", "Modelo", "Serial", "Usuario", 
+            "Departamento", "Fecha_Adquisicion", "Estado", "Notas"
         ])
 
 def guardar_excel(df):
@@ -25,92 +48,128 @@ def guardar_excel(df):
 # Cargar datos iniciales
 cargar_datos()
 
-# Sidebar (Menú de opciones)
+# --- SIDEBAR (Menú principal) ---
 st.sidebar.title("⚙️ Menú de Gestión")
-opcion = st.sidebar.radio(
-    "Seleccione una opción:",
-    ("📋 Ver Inventario", "➕ Agregar Activo", "📤 Importar desde Excel", "📥 Exportar a Excel", "🔍 Buscar Activo")
+menu_principal = st.sidebar.radio(
+    "**Opciones Principales**",
+    ["🏠 Inicio", "📦 Inventario", "📊 Reportes", "⚙️ Configuración"]
 )
 
-# Opción 1: Ver Inventario
-if opcion == "📋 Ver Inventario":
-    st.title("📋 Inventario de Activos de TI")
-    st.dataframe(st.session_state.inventario, use_container_width=True)
+# --- SUBMENÚ: INVENTARIO ---
+if menu_principal == "📦 Inventario":
+    st.sidebar.markdown("### 📦 Categorías de Activos")
+    submenu = st.sidebar.selectbox(
+        "Seleccione una categoría:",
+        ["💻 Ordenadores", "🔌 Switch", "🌐 Routers", "Todos los Activos"]
+    )
 
-# Opción 2: Agregar un nuevo activo
-elif opcion == "➕ Agregar Activo":
-    st.title("➕ Agregar Nuevo Activo")
-    with st.form("form_agregar"):
-        col1, col2 = st.columns(2)
-        with col1:
-            tipo = st.selectbox("Tipo de Activo", ["Laptop", "Desktop", "Monitor", "Impresora", "Servidor", "Router"])
+# --- CONTENIDO PRINCIPAL ---
+st.title("💻 Gestión de Activos de TI")
+
+# Opción 1: Página de Inicio
+if menu_principal == "🏠 Inicio":
+    st.markdown("""
+        <div class="card">
+            <h2 class="titulo-seccion">Bienvenido al Sistema de Gestión de Activos de TI</h2>
+            <p>Utiliza el menú lateral para navegar entre las diferentes opciones.</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Estadísticas rápidas (ejemplo)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Activos", len(st.session_state.inventario))
+    with col2:
+        st.metric("Activos Operativos", len(st.session_state.inventario[st.session_state.inventario["Estado"] == "Activo"]))
+    with col3:
+        st.metric("En Mantenimiento", len(st.session_state.inventario[st.session_state.inventario["Estado"] == "En Mantenimiento"]))
+    
+    # Gráfico de distribución por categoría (usando Plotly)
+    if not st.session_state.inventario.empty:
+        fig = px.pie(
+            st.session_state.inventario, 
+            names="Categoría", 
+            title="Distribución de Activos por Categoría"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+# Opción 2: Inventario (con submenú)
+elif menu_principal == "📦 Inventario":
+    if submenu == "💻 Ordenadores":
+        st.header("💻 Ordenadores")
+        df_filtrado = st.session_state.inventario[st.session_state.inventario["Categoría"] == "Ordenadores"]
+    elif submenu == "🔌 Switch":
+        st.header("🔌 Switch")
+        df_filtrado = st.session_state.inventario[st.session_state.inventario["Categoría"] == "Switch"]
+    elif submenu == "🌐 Routers":
+        st.header("🌐 Routers")
+        df_filtrado = st.session_state.inventario[st.session_state.inventario["Categoría"] == "Routers"]
+    else:
+        st.header("Todos los Activos")
+        df_filtrado = st.session_state.inventario
+    
+    # Mostrar tabla filtrada
+    st.dataframe(df_filtrado, use_container_width=True)
+    
+    # Botones de acción
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("➕ Agregar Nuevo Activo"):
+            st.session_state["formulario_activo"] = True
+    with col2:
+        if st.button("📥 Exportar a Excel"):
+            if not df_filtrado.empty:
+                nombre_archivo = guardar_excel(df_filtrado)
+                st.success(f"✅ Exportado como: {nombre_archivo}")
+            else:
+                st.warning("⚠️ No hay datos para exportar.")
+    
+    # Formulario para agregar activo (aparece al hacer clic en el botón)
+    if st.session_state.get("formulario_activo"):
+        with st.form("form_agregar"):
+            st.markdown("### 📝 Nuevo Activo")
+            categoria = st.selectbox("Categoría", ["Ordenadores", "Switch", "Routers", "Otros"])
+            tipo = st.text_input("Tipo (Ej: Laptop, Desktop, Cisco 2960)")
             marca = st.text_input("Marca")
             modelo = st.text_input("Modelo")
-            serial = st.text_input("Número de Serie")
-        with col2:
-            usuario = st.text_input("Usuario Asignado")
-            departamento = st.selectbox("Departamento", ["IT", "Finanzas", "RH", "Ventas", "Operaciones"])
-            fecha_adq = st.date_input("Fecha de Adquisición")
-            estado = st.selectbox("Estado", ["Activo", "En Mantenimiento", "Obsoleto", "Dado de Baja"])
-        
-        notas = st.text_area("Notas Adicionales")
-        
-        if st.form_submit_button("💾 Guardar Activo"):
-            nuevo_activo = {
-                "ID": len(st.session_state.inventario) + 1,
-                "Tipo": tipo,
-                "Marca": marca,
-                "Modelo": modelo,
-                "Serial": serial,
-                "Usuario": usuario,
-                "Departamento": departamento,
-                "Fecha_Adquisicion": fecha_adq,
-                "Estado": estado,
-                "Notas": notas
-            }
-            st.session_state.inventario = pd.concat([
-                st.session_state.inventario,
-                pd.DataFrame([nuevo_activo])
-            ], ignore_index=True)
-            st.success("✅ Activo agregado correctamente!")
+            serial = st.text_input("Serial")
+            
+            if st.form_submit_button("💾 Guardar"):
+                nuevo_activo = {
+                    "ID": len(st.session_state.inventario) + 1,
+                    "Categoría": categoria,
+                    "Tipo": tipo,
+                    "Marca": marca,
+                    "Modelo": modelo,
+                    "Serial": serial,
+                    "Usuario": "",
+                    "Departamento": "",
+                    "Fecha_Adquisicion": "",
+                    "Estado": "Activo",
+                    "Notas": ""
+                }
+                st.session_state.inventario = pd.concat([
+                    st.session_state.inventario,
+                    pd.DataFrame([nuevo_activo])
+                ], ignore_index=True)
+                st.success("✅ Activo agregado!")
+                st.session_state["formulario_activo"] = False
 
-# Opción 3: Importar desde Excel
-elif opcion == "📤 Importar desde Excel":
-    st.title("📤 Importar desde Excel")
-    archivo = st.file_uploader("Sube tu archivo Excel (.xlsx)", type="xlsx")
-    if archivo:
-        try:
-            df_nuevo = pd.read_excel(archivo)
-            st.session_state.inventario = pd.concat([st.session_state.inventario, df_nuevo], ignore_index=True)
-            st.success("✅ Datos importados correctamente!")
-        except Exception as e:
-            st.error(f"❌ Error al importar: {e}")
-
-# Opción 4: Exportar a Excel
-elif opcion == "📥 Exportar a Excel":
-    st.title("📥 Exportar a Excel")
+# Opción 3: Reportes
+elif menu_principal == "📊 Reportes":
+    st.header("📊 Reportes")
     if not st.session_state.inventario.empty:
-        nombre_archivo = guardar_excel(st.session_state.inventario)
-        with open(nombre_archivo, "rb") as f:
-            st.download_button(
-                label="⬇️ Descargar Inventario en Excel",
-                data=f,
-                file_name=nombre_archivo,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+        # Gráfico de estado de activos
+        fig_estado = px.bar(
+            st.session_state.inventario,
+            x="Estado",
+            title="Activos por Estado"
+        )
+        st.plotly_chart(fig_estado, use_container_width=True)
     else:
-        st.warning("⚠️ No hay datos para exportar.")
+        st.warning("No hay datos para generar reportes.")
 
-# Opción 5: Buscar Activo
-elif opcion == "🔍 Buscar Activo":
-    st.title("🔍 Buscar Activo")
-    busqueda = st.text_input("Buscar por Serial, Usuario o Departamento")
-    if busqueda:
-        resultados = st.session_state.inventario[
-            (st.session_state.inventario["Serial"].str.contains(busqueda, case=False)) |
-            (st.session_state.inventario["Usuario"].str.contains(busqueda, case=False)) |
-            (st.session_state.inventario["Departamento"].str.contains(busqueda, case=False))
-        ]
-        st.dataframe(resultados, use_container_width=True)
-    else:
-        st.info("🔎 Ingresa un término de búsqueda.")
+# Opción 4: Configuración
+elif menu_principal == "⚙️ Configuración":
+    st.header("⚙️ Configuración")
+    st.markdown("Opciones avanzadas de configuración.")
