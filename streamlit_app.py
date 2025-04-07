@@ -44,11 +44,47 @@ def cargar_datos():
     # Datos de proveedores
     if "proveedores" not in st.session_state:
         st.session_state.proveedores = {
-            "Dell Technologies": "12345678",
-            "Cisco Systems": "87654321",
-            "HP Inc.": "55555555",
-            "Amazon Web Services": "99999999"
-        }
+  "MDTel": "506228",
+  "Redictel": "53083",
+  "MISCO": "506408",
+  "Vodafone": "54292",
+  "EPLAN": "53593",
+  "Elecsoft": "52771",
+  "SCA": "54501",
+  "Cadtech PLM Catalunya": "54720",
+  "Salicru": "54400",
+  "Touchbase": "506238",
+  "Dell": "53337",
+  "INS VALLES": "206378",
+  "SINEL": "51849",
+  "SARIKI": "51633",
+  "HP": "506311",
+  "One Direct": "54685",
+  "Iberbanda": "506269",
+  "Sprint": "506323",
+  "VALORA DATA": "506321",
+  "Insight": "54027",
+  "Orange": "506346",
+  "AIDC": "206657",
+  "TECHSISTEM": "506347",
+  "CDW LTD": "506430",
+  "LOGYCO": "506413",
+  "FRANPER": "53635",
+  "MOVISTAR MÓVILES": "506452",
+  "STAPLES": "100961",
+  "NATILIK": "506507",
+  "Robotics": "51592",
+  "SEINSOL": "506540",
+  "TELEFONICA": "53093",
+  "COLT": "506607",
+  "Curvature": "506723",
+  "HCL": "506783",
+  "Semic": "506870",
+  "Clase 10": "506874",
+  "Kalamazoo": "100961",
+  "RS": "53113",
+  "DISELECTRIC": "53476"
+}
     
     # Datos de activos (si los necesitas)
     if "inventario" not in st.session_state:
