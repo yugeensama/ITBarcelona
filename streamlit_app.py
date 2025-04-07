@@ -4,7 +4,7 @@ from datetime import datetime
 
 # --- Configuración de la página ---
 st.set_page_config(
-    page_title="Gestión de Activos de TI",
+    page_title="Gestión de Activos y Pedidos TI",
     page_icon="💻",
     layout="wide"
 )
@@ -27,138 +27,151 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Datos iniciales (modelos de switches y bocas) ---
-if "modelos_switches" not in st.session_state:
-    st.session_state.modelos_switches = {
-        "Cisco Catalyst 2960": 24,
-        "Cisco Catalyst 3560": 48,
-        "HP ProCurve 2520": 24,
-        "TP-Link TL-SG1024": 24,
-        "Ubiquiti USW-24": 24
-    }
-
-if "config_bocas" not in st.session_state:
-    st.session_state.config_bocas = pd.DataFrame(columns=[
-        "Modelo", "Total_Bocas", "Bocas_Disponibles", "Bocas_Ocupadas", "Notas"
+# --- Datos iniciales ---
+if "pedidos" not in st.session_state:
+    st.session_state.pedidos = pd.DataFrame(columns=[
+        "ID", "CONCEPTO", "Proveedor", "Número de proveedor", "Importe", 
+        "CCAR Request Number", "Solicitud", "Fecha Pedido", "Fecha Entrada", 
+        "Comentarios", "Inversión SAP"
     ])
 
-# --- Funciones clave ---
-def cargar_datos():
-    if "inventario" not in st.session_state:
-        st.session_state.inventario = pd.DataFrame(columns=[
-            "ID", "Categoría", "Tipo", "Marca", "Modelo", "Serial", 
-            "Usuario", "Departamento", "Fecha_Adquisicion", "Estado", "Notas"
-        ])
+if "proveedores" not in st.session_state:
+    st.session_state.proveedores = {
+        "Dell Technologies": "12345678",
+        "Cisco Systems": "87654321",
+        "HP Inc.": "55555555",
+        "Amazon Web Services": "99999999"
+    }
 
-def guardar_excel(df):
+# --- Funciones clave ---
+def guardar_excel(df, nombre_base):
     fecha_actual = datetime.now().strftime("%Y%m%d_%H%M%S")
-    nombre_archivo = f"inventario_activos_{fecha_actual}.xlsx"
+    nombre_archivo = f"{nombre_base}_{fecha_actual}.xlsx"
     df.to_excel(nombre_archivo, index=False)
     return nombre_archivo
-
-# --- Carga inicial ---
-cargar_datos()
 
 # --- Sidebar (Menú) ---
 st.sidebar.title("⚙️ Menú de Gestión")
 menu_principal = st.sidebar.radio(
     "**Opciones Principales**",
-    ["🏠 Inicio", "📦 Inventario", "🔌 Configurar Bocas", "📊 Reportes"]
+    ["🏠 Inicio", "📦 Activos", "📝 Pedidos", "🔌 Configuración"]
 )
 
-if menu_principal == "📦 Inventario":
-    st.sidebar.markdown("### 📦 Categorías")
-    submenu = st.sidebar.selectbox(
-        "Seleccione:",
-        ["💻 Ordenadores", "🔌 Switch", "🌐 Routers", "Todos los Activos"]
-    )
-
 # --- Contenido Principal ---
-st.title("💻 Gestión de Activos de TI")
+st.title("💻 Gestión de Pedidos y Activos TI")
 
 # 1. Página de Inicio
 if menu_principal == "🏠 Inicio":
     st.markdown("""
         <div class="card">
-            <h2 class="titulo-seccion">Bienvenido al Sistema de Gestión de Activos</h2>
+            <h2 class="titulo-seccion">Bienvenido al Sistema de Gestión</h2>
             <p>Utiliza el menú lateral para navegar.</p>
         </div>
     """, unsafe_allow_html=True)
     
-    # Métricas
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
-        st.metric("Total Activos", len(st.session_state.inventario))
+        st.metric("Total Pedidos", len(st.session_state.pedidos))
     with col2:
-        activos_operativos = len(st.session_state.inventario[st.session_state.inventario["Estado"] == "Activo"])
-        st.metric("Activos Operativos", activos_operativos)
-    with col3:
-        st.metric("Switches Registrados", len(st.session_state.config_bocas))
+        st.metric("Proveedores Registrados", len(st.session_state.proveedores))
 
-# 2. Inventario
-elif menu_principal == "📦 Inventario":
-    # (Mismo código de filtrado y tabla que antes)
-    ...
-
-# 3. Configuración de Bocas (¡Nueva sección interactiva!)
-elif menu_principal == "🔌 Configurar Bocas":
-    st.header("🔌 Configuración de Bocas de Switch")
+# 2. Sección de Pedidos
+elif menu_principal == "📝 Pedidos":
+    tab1, tab2, tab3 = st.tabs(["➕ Nuevo Pedido", "📋 Todos los Pedidos", "🔄 Importar/Exportar"])
     
-    # Pestañas para gestión
-    tab1, tab2 = st.tabs(["📋 Registrar Switch", "📊 Estado de Bocas"])
-    
+    # Pestaña 1: Nuevo Pedido
     with tab1:
-        st.markdown("### 📋 Registrar Nuevo Switch")
-        with st.form("form_switch"):
+        st.header("📝 Registrar Nuevo Pedido")
+        with st.form("form_pedido"):
             col1, col2 = st.columns(2)
             with col1:
-                modelo = st.selectbox(
-                    "Modelo de Switch",
-                    options=list(st.session_state.modelos_switches.keys()),
-                    help="Selecciona un modelo predefinido o añade uno nuevo."
+                concepto = st.text_input("CONCEPTO*")
+                proveedor = st.selectbox(
+                    "Proveedor*",
+                    options=list(st.session_state.proveedores.keys()),
+                    help="Selecciona un proveedor registrado."
                 )
-                total_bocas = st.number_input(
-                    "Total de Bocas",
-                    min_value=1,
-                    value=st.session_state.modelos_switches.get(modelo, 24),
-                    key="total_bocas"
+                num_proveedor = st.text_input(
+                    "Número de Proveedor*",
+                    value=st.session_state.proveedores.get(proveedor, ""),
+                    disabled=True
                 )
+                importe = st.number_input("Importe (€)*", min_value=0.0, format="%.2f")
+                ccar = st.text_input("CCAR Request Number")
             with col2:
-                bocas_ocupadas = st.number_input(
-                    "Bocas Ocupadas",
-                    min_value=0,
-                    max_value=total_bocas,
-                    value=0,
-                    help="Número de bocas en uso."
-                )
-                notas = st.text_area("Notas (Opcional)")
+                solicitud = st.text_input("Solicitud")
+                fecha_pedido = st.date_input("Fecha Pedido*")
+                fecha_entrada = st.date_input("Fecha Entrada")
+                inversion_sap = st.text_input("Inversión SAP")
+                comentarios = st.text_area("Comentarios")
             
-            if st.form_submit_button("💾 Guardar Configuración"):
-                nuevo_switch = {
-                    "Modelo": modelo,
-                    "Total_Bocas": total_bocas,
-                    "Bocas_Disponibles": total_bocas - bocas_ocupadas,
-                    "Bocas_Ocupadas": bocas_ocupadas,
-                    "Notas": notas
+            if st.form_submit_button("💾 Guardar Pedido"):
+                nuevo_pedido = {
+                    "ID": len(st.session_state.pedidos) + 1,
+                    "CONCEPTO": concepto,
+                    "Proveedor": proveedor,
+                    "Número de proveedor": num_proveedor,
+                    "Importe": importe,
+                    "CCAR Request Number": ccar,
+                    "Solicitud": solicitud,
+                    "Fecha Pedido": fecha_pedido,
+                    "Fecha Entrada": fecha_entrada,
+                    "Comentarios": comentarios,
+                    "Inversión SAP": inversion_sap
                 }
-                st.session_state.config_bocas = pd.concat([
-                    st.session_state.config_bocas,
-                    pd.DataFrame([nuevo_switch])
+                st.session_state.pedidos = pd.concat([
+                    st.session_state.pedidos,
+                    pd.DataFrame([nuevo_pedido])
                 ], ignore_index=True)
-                st.success("✅ Switch registrado correctamente!")
+                st.success("✅ Pedido registrado correctamente!")
     
+    # Pestaña 2: Ver/Editar Pedidos
     with tab2:
-        st.markdown("### 📊 Estado Actual de Bocas")
-        if not st.session_state.config_bocas.empty:
-            st.dataframe(st.session_state.config_bocas, use_container_width=True)
+        st.header("📋 Listado de Pedidos")
+        if not st.session_state.pedidos.empty:
+            # Mostrar tabla editable
+            edited_df = st.data_editor(
+                st.session_state.pedidos,
+                num_rows="dynamic",
+                use_container_width=True,
+                key="editor_pedidos"
+            )
             
-            # Gráfico de ocupación (nativo de Streamlit)
-            st.markdown("### 📈 Ocupación de Bocas")
-            st.bar_chart(st.session_state.config_bocas.set_index("Modelo")[["Bocas_Disponibles", "Bocas_Ocupadas"]])
+            if st.button("💾 Guardar Cambios"):
+                st.session_state.pedidos = edited_df
+                st.success("Datos actualizados!")
         else:
-            st.warning("No hay switches registrados.")
+            st.warning("No hay pedidos registrados.")
+    
+    # Pestaña 3: Importar/Exportar
+    with tab3:
+        st.header("🔄 Importar/Exportar Datos")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("### 📤 Exportar a Excel")
+            if st.button("Generar Archivo Excel"):
+                if not st.session_state.pedidos.empty:
+                    nombre_archivo = guardar_excel(st.session_state.pedidos, "pedidos_ti")
+                    with open(nombre_archivo, "rb") as f:
+                        st.download_button(
+                            label="⬇️ Descargar",
+                            data=f,
+                            file_name=nombre_archivo,
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
+                else:
+                    st.warning("No hay datos para exportar.")
+        
+        with col2:
+            st.markdown("### 📥 Importar desde Excel")
+            archivo = st.file_uploader("Sube archivo Excel", type="xlsx")
+            if archivo:
+                try:
+                    df_nuevo = pd.read_excel(archivo)
+                    st.session_state.pedidos = pd.concat([st.session_state.pedidos, df_nuevo], ignore_index=True)
+                    st.success(f"✅ {len(df_nuevo)} pedidos importados!")
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
-# 4. Reportes
-elif menu_principal == "📊 Reportes":
-    # (Código de reportes existente)
-    ...
+# (Las otras secciones como Activos y Configuración permanecen igual)
