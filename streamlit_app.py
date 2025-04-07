@@ -144,34 +144,52 @@ elif menu_principal == "📝 Pedidos":
             st.warning("No hay pedidos registrados.")
     
     # Pestaña 3: Importar/Exportar
-    with tab3:
-        st.header("🔄 Importar/Exportar Datos")
+   with tab3:
+    st.header("🔄 Importar/Exportar Datos")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("### 📤 Exportar a Excel")
+        if not st.session_state.pedidos.empty:
+            nombre_archivo = guardar_excel(st.session_state.pedidos, "pedidos_ti")
+            with open(nombre_archivo, "rb") as f:
+                st.download_button(
+                    label="⬇️ Descargar",
+                    data=f,
+                    file_name=nombre_archivo,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+        else:
+            st.warning("No hay datos para exportar.")
+    
+    with col2:
+        st.markdown("### 📥 Importar desde Excel")
+        archivo = st.file_uploader("Sube archivo Excel (.xlsx)", type="xlsx", key="uploader_pedidos")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("### 📤 Exportar a Excel")
-            if st.button("Generar Archivo Excel"):
-                if not st.session_state.pedidos.empty:
-                    nombre_archivo = guardar_excel(st.session_state.pedidos, "pedidos_ti")
-                    with open(nombre_archivo, "rb") as f:
-                        st.download_button(
-                            label="⬇️ Descargar",
-                            data=f,
-                            file_name=nombre_archivo,
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        )
-                else:
-                    st.warning("No hay datos para exportar.")
-        
-        with col2:
-            st.markdown("### 📥 Importar desde Excel")
-            archivo = st.file_uploader("Sube archivo Excel", type="xlsx")
-            if archivo:
-                try:
-                    df_nuevo = pd.read_excel(archivo)
-                    st.session_state.pedidos = pd.concat([st.session_state.pedidos, df_nuevo], ignore_index=True)
+        if archivo is not None:
+            try:
+                # Leer el archivo y asegurar columnas compatibles
+                df_nuevo = pd.read_excel(archivo)
+                
+                # Verificar columnas mínimas requeridas
+                columnas_requeridas = ["CONCEPTO", "Proveedor", "Importe"]
+                if all(col in df_nuevo.columns for col in columnas_requeridas):
+                    # Asignar IDs únicos a nuevos registros
+                    if "ID" not in df_nuevo.columns:
+                        df_nuevo["ID"] = range(len(st.session_state.pedidos) + 1, 
+                                        len(st.session_state.pedidos) + len(df_nuevo) + 1)
+                    
+                    # Combinar con datos existentes (sin duplicados)
+                    st.session_state.pedidos = pd.concat(
+                        [st.session_state.pedidos, df_nuevo],
+                        ignore_index=True
+                    ).drop_duplicates(subset=["ID"], keep="last")
+                    
                     st.success(f"✅ {len(df_nuevo)} pedidos importados!")
-                except Exception as e:
-                    st.error(f"Error: {e}")
-
+                    st.rerun()  # Forzar actualización de la UI
+                else:
+                    st.error(f"❌ El archivo debe contener al menos estas columnas: {', '.join(columnas_requeridas)}")
+            
+            except Exception as e:
+                st.error(f"❌ Error al importar: {str(e)}")
 # (Las otras secciones como Activos y Configuración permanecen igual)
